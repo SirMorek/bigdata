@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as sql_functions
 
@@ -19,7 +21,24 @@ if __name__ == "__main__":
     orders = spark.read.json(ORDERS_FILE)
     # Dumb debug prints to show that we are actually reading the files and have
     # Spark running.
-    print("Session count: %s" % sessions.count())
+    print("Sessions count: %s" % sessions.count())
+    print(sessions.first())
     print("Features count: %s" % features.count())
+    print(features.first())
     print("Orders count: %s" % orders.count())
-    print("Sample split ssid: %s" % split_ssid(sessions).first())
+    print(orders.first())
+    sample = split_ssid(sessions).first()[0]
+    print("Sample split ssid: %s" % sample)
+    user_id = sample[0]
+    site_id = sample[1]
+    session_time = datetime.fromtimestamp(int(sample[2]))
+    print("User id: %s, Site id: %s, Time: %s" % (user_id, site_id,
+                                                  session_time.isoformat()))
+
+    print(
+        sessions.join(orders, sessions.ssid == orders.ssid, "left").join(
+            features, sessions.ssid == features.ssid, "left").select(
+                sql_functions.from_unixtime(sessions.st).alias("start_time"),
+                sql_functions.split(sessions.ssid,
+                                    ":")[1].alias("site_id"), sessions.gr,
+                features.ad, sessions.browser, orders.revenue).show())

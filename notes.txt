@@ -1,0 +1,32 @@
+Requested output:
+
+Tabular data with columns:
+* session start date (truncate at hours)
+* site id
+* gr (control or experiment)
+* ad
+* browser
+* number of sessions
+* number of conversions
+* number of transactions
+* sum of revenue
+
+Thinking through the logic. Probably want a row per unique user within the time
+period of the data set... no that won't work. For each session, just report that
+session. So the other data has to be aggregated.
+
+Or aggregate each hour, like how many sessions in each hour, how many
+conversions etc... that seems like more directly useful analysis for a business
+owner. So the next thing I need to figure out how to do is make a histogram out
+of the data.
+
+If the first five columns are keys, output data should look like:
+00:00, site_0, control, campaign_A, IE, #, #, #, #
+00:00, site_0, experim, campaign_A, IE, #, #, #, #
+00:00, site_1, control, campaign_A, IE, #, #, #, #
+00:00, site_1, control, campaign_B, IE, #, #, #, #
+
+date_trunc('hour', session.st)
+
+I probably need to build an intermediate table that has the content joined
+together first, then aggregate that.
