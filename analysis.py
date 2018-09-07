@@ -35,10 +35,20 @@ if __name__ == "__main__":
     print("User id: %s, Site id: %s, Time: %s" % (user_id, site_id,
                                                   session_time.isoformat()))
 
-    print(
-        sessions.join(orders, sessions.ssid == orders.ssid, "left").join(
-            features, sessions.ssid == features.ssid, "left").select(
-                sql_functions.from_unixtime(sessions.st).alias("start_time"),
-                sql_functions.split(sessions.ssid,
-                                    ":")[1].alias("site_id"), sessions.gr,
-                features.ad, sessions.browser, orders.revenue).show())
+    joined_sessions = sessions.join(
+        orders, sessions.ssid == orders.ssid, "left").join(
+            features, sessions.ssid == features.ssid, "left")
+    select_features = joined_sessions.select(
+        sql_functions.from_unixtime(sessions.st).alias("start_time"),
+        sql_functions.split(sessions.ssid, ":")[1].alias("site_id"),
+        sessions.gr, features.ad, sessions.browser, orders.revenue)
+    print(select_features.show())
+
+    summary = select_features.groupBy(
+        sql_functions.window(select_features.start_time, "1 hours"),
+        select_features.site_id, select_features.gr, select_features.ad,
+        select_features.browser).agg(
+            sql_functions.sum(select_features.revenue),
+            sql_functions.count(
+                select_features.start_time).alias("Number of sessions"))
+    print(summary.show())

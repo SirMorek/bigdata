@@ -30,3 +30,24 @@ date_trunc('hour', session.st)
 
 I probably need to build an intermediate table that has the content joined
 together first, then aggregate that.
+
+
+##
+Notice that there are duplicate ssid's somehow?
+>>> sessions.groupBy(sessions.ssid).count().count()
+99397
+>>> sessions.count()
+100969
+
+Notice that the revenue sums are odd. Floating point errors going around? Could
+believe it to be safe but should better understand why it is happening.
+
+Figured out how to get most of the aggregations implemented, but am stuck trying
+to figure out how to do conversions at the same time as the other aggregations.
+Might have to do that separately and join it back in later.
+
+Conversions should be "count of sessions with >0 transactions" or "count of
+sessions with >0 revenue". Could do groupBy(ssid).agg(sum(df.revenue)) but that
+seems like the wrong way to do it.
+
+first_pass.groupBy(first_pass.ssid).agg(functions.sum(first_pass.revenue).alias("total_revenue"))
