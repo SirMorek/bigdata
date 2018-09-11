@@ -38,17 +38,21 @@ if __name__ == "__main__":
     joined_sessions = sessions.join(
         orders, sessions.ssid == orders.ssid, "left").join(
             features, sessions.ssid == features.ssid, "left")
+    start_time_fn = sql_functions.from_unixtime(
+        sessions.st).alias("start_time")
+    user_id_fn = sql_functions.split(sessions.ssid, ":")[0].alias("user_id")
+    site_id_fn = sql_functions.split(sessions.ssid, ":")[1].alias("site_id")
     select_features = joined_sessions.select(
-        sql_functions.from_unixtime(sessions.st).alias("start_time"),
-        sql_functions.split(sessions.ssid, ":")[1].alias("site_id"),
-        sessions.gr, features.ad, sessions.browser, orders.revenue)
+        start_time_fn, user_id_fn, site_id_fn, sessions.gr, features.ad,
+        sessions.browser, orders.revenue)
     print(select_features.show())
 
-    summary = select_features.groupBy(
-        sql_functions.window(select_features.start_time, "1 hours"),
-        select_features.site_id, select_features.gr, select_features.ad,
-        select_features.browser).agg(
-            sql_functions.sum(select_features.revenue),
-            sql_functions.count(
-                select_features.start_time).alias("Number of sessions"))
+    time_window = sql_functions.window(select_features.start_time, "1 hours")
+    grouped_features = select_features.groupBy(
+        time_window, select_features.site_id, select_features.gr,
+        select_features.ad, select_features.browser)
+    revenue_fn = sql_functions.sum(select_features.revenue)
+    session_count_fn = sql_functions.count(
+        select_features.start_time).alias("Number of sessions")
+    summary = grouped_features.agg(revenue_fn, session_count_fn)
     print(summary.show())
