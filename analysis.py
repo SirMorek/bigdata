@@ -54,5 +54,9 @@ if __name__ == "__main__":
     revenue_fn = sql_functions.sum(select_features.revenue)
     session_count_fn = sql_functions.count(
         select_features.start_time).alias("Number of sessions")
-    summary = grouped_features.agg(revenue_fn, session_count_fn)
+    transaction_count_fn = sql_functions.count(
+        sql_functions.when(select_features.revenue > 0,
+                           1)).alias("Number of transactions")
+    summary = grouped_features.agg(revenue_fn, session_count_fn,
+                                   transaction_count_fn)
     print(summary.show())
