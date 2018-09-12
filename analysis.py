@@ -19,21 +19,6 @@ if __name__ == "__main__":
     sessions = spark.read.json(SESSIONS_FILE)
     features = spark.read.json(FEATURES_FILE)
     orders = spark.read.json(ORDERS_FILE)
-    # Dumb debug prints to show that we are actually reading the files and have
-    # Spark running.
-    print("Sessions count: %s" % sessions.count())
-    print(sessions.first())
-    print("Features count: %s" % features.count())
-    print(features.first())
-    print("Orders count: %s" % orders.count())
-    print(orders.first())
-    sample = split_ssid(sessions).first()[0]
-    print("Sample split ssid: %s" % sample)
-    user_id = sample[0]
-    site_id = sample[1]
-    session_time = datetime.fromtimestamp(int(sample[2]))
-    print("User id: %s, Site id: %s, Time: %s" % (user_id, site_id,
-                                                  session_time.isoformat()))
 
     joined_sessions = sessions.join(
         orders, sessions.ssid == orders.ssid, "left").join(
@@ -45,7 +30,6 @@ if __name__ == "__main__":
     select_features = joined_sessions.select(
         start_time_fn, user_id_fn, site_id_fn, sessions.ssid, sessions.gr,
         features.ad, sessions.browser, orders.revenue)
-    print(select_features.show())
 
     time_window = sql_functions.window(select_features.start_time, "1 hours")
     grouped_features = select_features.groupBy(
@@ -62,7 +46,6 @@ if __name__ == "__main__":
                            select_features.ssid)).alias("conversions")
     summary = grouped_features.agg(revenue_fn, session_count_fn,
                                    transaction_count_fn, conversion_count_fn)
-    print(summary.show())
     report = summary.select(
         (summary.window.start).alias("session_start"), summary.site_id,
         summary.gr, summary.ad, summary.browser,
