@@ -1,3 +1,4 @@
+import itertools
 from datetime import datetime
 
 from pyspark.sql import SparkSession
@@ -53,3 +54,20 @@ if __name__ == "__main__":
         summary.sessions, summary.transactions, summary.conversions)
     report.coalesce(1).write.csv(
         "output", sep="\t", mode="overwrite", header="true")
+
+    select_features = joined_sessions.select(
+        site_id_fn, features.ad, features['feature-1'].alias("feature_1"),
+        features['feature-2'].alias("feature_2"),
+        features['feature-3'].alias("feature_3"),
+        features['feature-4'].alias("feature_4"))
+    grouped_features = select_features.groupBy(select_features.site_id,
+                                               select_features.ad)
+    mean_stddev_fns = \
+        [(sql_functions.mean(select_features[feature_name]).alias(
+            '%s_mean' % feature_name),
+          sql_functions.stddev_pop(select_features[feature_name]).alias(
+              '%s_stddev' % feature_name)) for feature_name in
+         ['feature_1', 'feature_2', 'feature_3', 'feature_4']]
+    report = grouped_features.agg(*list(itertools.chain(*mean_stddev_fns)))
+    report.coalesce(1).write.csv(
+        "output2", sep="\t", mode="overwrite", header="true")
