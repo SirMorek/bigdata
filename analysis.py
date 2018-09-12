@@ -43,8 +43,8 @@ if __name__ == "__main__":
     user_id_fn = sql_functions.split(sessions.ssid, ":")[0].alias("user_id")
     site_id_fn = sql_functions.split(sessions.ssid, ":")[1].alias("site_id")
     select_features = joined_sessions.select(
-        start_time_fn, user_id_fn, site_id_fn, sessions.gr, features.ad,
-        sessions.browser, orders.revenue)
+        start_time_fn, user_id_fn, site_id_fn, sessions.ssid, sessions.gr,
+        features.ad, sessions.browser, orders.revenue)
     print(select_features.show())
 
     time_window = sql_functions.window(select_features.start_time, "1 hours")
@@ -53,10 +53,13 @@ if __name__ == "__main__":
         select_features.ad, select_features.browser)
     revenue_fn = sql_functions.sum(select_features.revenue)
     session_count_fn = sql_functions.count(
-        select_features.start_time).alias("Number of sessions")
+        select_features.ssid).alias("Number of sessions")
     transaction_count_fn = sql_functions.count(
         sql_functions.when(select_features.revenue > 0,
                            1)).alias("Number of transactions")
+    conversion_count_fn = sql_functions.countDistinct(
+        sql_functions.when(select_features.revenue > 0,
+                           select_features.ssid)).alias("Number of conversion")
     summary = grouped_features.agg(revenue_fn, session_count_fn,
-                                   transaction_count_fn)
+                                   transaction_count_fn, conversion_count_fn)
     print(summary.show())
