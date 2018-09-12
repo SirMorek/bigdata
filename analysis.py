@@ -73,6 +73,7 @@ if __name__ == "__main__":
         site_id_fn, features.ad, features['feature-1'].alias("feature_1"),
         features['feature-2'].alias("feature_2"),
         features['feature-3'].alias("feature_3"),
-        features['feature-4'].alias("feature_4"))
+        features['feature-4'].alias("feature_4")).filter(
+            joined_sessions.ad.isNotNull())
 
     process_statistics(select_features)
