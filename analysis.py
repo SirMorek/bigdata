@@ -1,5 +1,7 @@
 import itertools
+import subprocess
 from datetime import datetime
+from tempfile import TemporaryDirectory
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as sql_functions
@@ -10,7 +12,7 @@ ORDERS_FILE = "orders.gz"
 SESSIONS_FILE = "sessions.gz"
 
 
-def process_aggregations(select_features):
+def process_aggregations(select_features, output_dir):
     time_window = sql_functions.window(select_features.start_time, "1 hours")
     grouped_features = select_features.groupBy(
         time_window, select_features.site_id, select_features.gr,
@@ -32,10 +34,10 @@ def process_aggregations(select_features):
         sql_functions.round(summary.revenue).alias("revenue"),
         summary.sessions, summary.transactions, summary.conversions)
     report.coalesce(1).write.csv(
-        "output", sep="\t", mode="overwrite", header="true")
+        output_dir, mode="overwrite", sep="\t", header="true")
 
 
-def process_statistics(select_features):
+def process_statistics(select_features, output_dir):
     grouped_features = select_features.groupBy(select_features.site_id,
                                                select_features.ad)
     mean_stddev_fns = \
@@ -46,7 +48,12 @@ def process_statistics(select_features):
          ['feature_1', 'feature_2', 'feature_3', 'feature_4']]
     report = grouped_features.agg(*list(itertools.chain(*mean_stddev_fns)))
     report.coalesce(1).write.csv(
-        "output2", sep="\t", mode="overwrite", header="true")
+        output_dir, mode="overwrite", sep="\t", header="true")
+
+
+def collect_report(directory, report_name):
+    target = directory + "/part*.csv"
+    subprocess.run(["./sorttsv.sh", target, report_name])
 
 
 if __name__ == "__main__":
@@ -67,7 +74,9 @@ if __name__ == "__main__":
         start_time_fn, user_id_fn, site_id_fn, sessions.ssid, sessions.gr,
         features.ad, sessions.browser, orders.revenue)
 
-    process_aggregations(select_features)
+    with TemporaryDirectory() as tempdir:
+        process_aggregations(select_features, tempdir)
+        collect_report(tempdir, "aggregation.tsv")
 
     select_features = joined_sessions.select(
         site_id_fn, features.ad, features['feature-1'].alias("feature_1"),
@@ -76,4 +85,6 @@ if __name__ == "__main__":
         features['feature-4'].alias("feature_4")).filter(
             joined_sessions.ad.isNotNull())
 
-    process_statistics(select_features)
+    with TemporaryDirectory() as tempdir:
+        process_statistics(select_features, tempdir)
+        collect_report(tempdir, "statistics.tsv")
