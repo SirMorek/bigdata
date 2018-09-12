@@ -51,15 +51,22 @@ if __name__ == "__main__":
     grouped_features = select_features.groupBy(
         time_window, select_features.site_id, select_features.gr,
         select_features.ad, select_features.browser)
-    revenue_fn = sql_functions.sum(select_features.revenue)
+    revenue_fn = sql_functions.sum(select_features.revenue).alias("revenue")
     session_count_fn = sql_functions.count(
-        select_features.ssid).alias("Number of sessions")
+        select_features.ssid).alias("sessions")
     transaction_count_fn = sql_functions.count(
         sql_functions.when(select_features.revenue > 0,
-                           1)).alias("Number of transactions")
+                           1)).alias("transactions")
     conversion_count_fn = sql_functions.countDistinct(
         sql_functions.when(select_features.revenue > 0,
-                           select_features.ssid)).alias("Number of conversion")
+                           select_features.ssid)).alias("conversions")
     summary = grouped_features.agg(revenue_fn, session_count_fn,
                                    transaction_count_fn, conversion_count_fn)
     print(summary.show())
+    report = summary.select(
+        (summary.window.start).alias("session_start"), summary.site_id,
+        summary.gr, summary.ad, summary.browser,
+        sql_functions.round(summary.revenue).alias("revenue"),
+        summary.sessions, summary.transactions, summary.conversions)
+    report.coalesce(1).write.csv(
+        "output", sep="\t", mode="overwrite", header="true")
