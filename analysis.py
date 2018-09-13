@@ -18,7 +18,7 @@ def process_aggregations(select_features, output_dir):
         time_window, select_features.site_id, select_features.gr,
         select_features.ad, select_features.browser)
     revenue_fn = sql_functions.sum(select_features.revenue).alias("revenue")
-    session_count_fn = sql_functions.count(
+    session_count_fn = sql_functions.countDistinct(
         select_features.ssid).alias("sessions")
     transaction_count_fn = sql_functions.count(
         sql_functions.when(select_features.revenue > 0,
